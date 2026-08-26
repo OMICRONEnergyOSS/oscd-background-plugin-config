@@ -1,0 +1,97 @@
+<title>oscd-background-plugin-config Demo</title>
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300&family=Roboto:wght@300;400;500&display=swap"
+/>
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css?family=Material+Icons&display=block"
+/>
+<link
+  href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+  rel="stylesheet"
+/>
+
+<oscd-shell></oscd-shell>
+
+<script type="module">
+  import '@webcomponents/scoped-custom-element-registry';
+  (async function () {
+    await import('https://omicronenergyoss.github.io/oscd-shell/oscd-shell.js');
+
+    const { default: OscdBackgroundPluginConfig } =
+      await import('@omicronenergy/oscd-background-plugin-config');
+
+    const oscdShell = document.querySelector('oscd-shell');
+    const params = new URL(document.location).searchParams;
+    for (const [name, value] of params) {
+      oscdShell.setAttribute(name, value);
+    }
+
+    const sample = new DOMParser().parseFromString(
+      '<SCL><Substation name="AA1"></Substation></SCL>',
+      'application/xml',
+    );
+    oscdShell.docs['sample.scd'] = new DOMParser().parseFromString(
+      sample,
+      'application/xml',
+    );
+    oscdShell.docName = 'sample.scd';
+
+    oscdShell.registry.define(
+      'oscd-background-plugin-config',
+      OscdBackgroundPluginConfig,
+    );
+
+    oscdShell.plugins = {
+      menu: [
+        {
+          name: 'Open File',
+          translations: { de: 'Datei öffnen' },
+          icon: 'folder_open',
+          active: true,
+          src: 'https://omicronenergyoss.github.io/oscd-menu-open/oscd-menu-open.js',
+        },
+        {
+          name: 'Save File',
+          translations: { de: 'Datei speichern' },
+          icon: 'save',
+          active: true,
+          src: 'https://omicronenergyoss.github.io/oscd-menu-save/oscd-menu-save.js',
+        },
+      ],
+      background: [
+        {
+          name: 'Plugin Configuration Bridge',
+          icon: 'none',
+          tagName: 'oscd-background-plugin-config',
+        },
+      ],
+      editor: [
+        {
+          name: 'Design SLD',
+          translations: {
+            de: 'Designer',
+          },
+          icon: 'add_box',
+          active: true,
+          requireDoc: true,
+          src: 'https://omicronenergyoss.github.io/oscd-editor-sld/oscd-editor-sld.js',
+        },
+      ],
+    };
+  })();
+</script>
+<style>
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    background-color: gray;
+  }
+
+  * {
+    margin: 0px;
+    padding: 0px;
+  }
+</style>

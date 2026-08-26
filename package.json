@@ -1,0 +1,52 @@
+{
+  "name": "@omicronenergy/oscd-background-plugin-config",
+  "version": "0.0.0",
+  "description": "OpenSCD background plugin that handles oscd-configure-plugin events for oscd-shell.",
+  "type": "module",
+  "exports": {
+    ".": "./dist/oscd-background-plugin-config.js",
+    "./oscd-background-plugin-config.js": "./dist/oscd-background-plugin-config.js",
+    "./plugin-configuration.js": "./dist/plugin-configuration.js"
+  },
+  "files": [
+    "/dist/",
+    "!/dist/*.spec.*",
+    "!/dist/*.test.*"
+  ],
+  "scripts": {
+    "lint": "oscd lint",
+    "format": "oscd lint --format",
+    "start": "oscd clean && oscd start --no-clean",
+    "start:bundle": "npm run bundle && oscd start-bundle --no-build",
+    "build": "oscd build",
+    "bundle": "oscd bundle",
+    "test": "oscd test",
+    "test:watch": "oscd test --watch",
+    "updates": "oscd updates",
+    "deploy": "oscd deploy",
+    "prepare": "oscd install-hooks"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OMICRONEnergyOSS/oscd-background-plugin-config.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OMICRONEnergyOSS/oscd-background-plugin-config/issues"
+  },
+  "homepage": "https://openscd.org",
+  "keywords": [
+    "OpenSCD",
+    "iec81650"
+  ],
+  "author": "OMICRON Electronics GmbH",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@omicronenergy/oscd-shell": "^0.0.13",
+    "@webcomponents/scoped-custom-element-registry": "^0.0.10",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@omicronenergy/oscd-tooling": "^0.0.5",
+    "@open-wc/testing": "^4.0.0"
+  }
+}
