@@ -16,8 +16,8 @@
 
 <script type="module">
   import '@webcomponents/scoped-custom-element-registry';
+  import '@omicronenergy/oscd-shell/oscd-shell.js';
   (async function () {
-    await import('https://omicronenergyoss.github.io/oscd-shell/oscd-shell.js');
 
     const { default: OscdBackgroundPluginConfig } =
       await import('@omicronenergy/oscd-background-plugin-config');
@@ -69,14 +69,14 @@
       ],
       editor: [
         {
-          name: 'Design SLD',
+          name: 'Plugins Hub',
           translations: {
-            de: 'Designer',
+            de: 'Plugins Hub',
           },
-          icon: 'add_box',
+          icon: 'edit',
           active: true,
           requireDoc: true,
-          src: 'https://omicronenergyoss.github.io/oscd-editor-sld/oscd-editor-sld.js',
+          src: "https://stee-re.github.io/compas-bearingpoint-plugins/compas/plugins/plugins-hub/index.js",
         },
       ],
     };
@@ -87,7 +87,6 @@
   body {
     width: 100%;
     height: 100%;
-    background-color: gray;
   }
 
   * {

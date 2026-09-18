@@ -247,4 +247,30 @@ describe('oscd-background-plugin-config', () => {
     ]);
     shadowShell.remove();
   });
+
+  it('persists owned plugins without persisting host plugins', () => {
+    shell.remove();
+    const configuredShell = createUnconnectedShellAndPlugin({
+      menu: [{ name: 'Host menu', src: '/host.js' }],
+      editor: [],
+      background: [],
+    });
+    configuredShell.connect();
+
+    dispatchConfigurePlugin(configuredShell.plugin, {
+      name: 'Owned menu',
+      kind: 'menu',
+      config: { src: '/owned.js', icon: 'owned' },
+    });
+
+    expect(JSON.parse(localStorage.getItem('plugins') ?? '[]')).to.deep.equal([
+      {
+        name: 'Owned menu',
+        src: '/owned.js',
+        icon: 'owned',
+        kind: 'menu',
+      },
+    ]);
+    configuredShell.shell.remove();
+  });
 });

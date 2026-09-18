@@ -52,6 +52,67 @@ export function isPluginKind(kind: string): kind is PluginKind {
   return (PLUGIN_KINDS as readonly string[]).includes(kind);
 }
 
+/** A new, empty `PluginSet` with every kind present as an empty array. */
+export function emptyPluginSet<P extends PluginLike = PluginLike>(): PluginSet<P> {
+  return { menu: [], editor: [], background: [] };
+}
+
+export function withoutPlugins<P extends PluginLike>(
+  pluginSet: PluginSet<P>,
+  removed: PluginSet<P>,
+): PluginSet<P> {
+  return PLUGIN_KINDS.reduce(
+    (result, kind) => ({
+      ...result,
+      [kind]: (pluginSet[kind] ?? []).filter(
+        plugin =>
+          !(removed[kind] ?? []).some(
+            removedPlugin => removedPlugin.name === plugin.name,
+          ),
+      ),
+    }),
+    emptyPluginSet<P>(),
+  );
+}
+
+/** Whether `plugin` carries its own identity - a `src` to import from, or an
+ * already-registered `tagName`. Entries with neither are partial and only
+ * make sense layered onto an entry that has one. */
+function isFullDefinition<P extends PluginLike>(plugin: P): boolean {
+  return typeof plugin.src === 'string' || typeof plugin.tagName === 'string';
+}
+
+/** Layers owned entries onto the current shell set, matching by name. */
+export function composePluginSets<P extends PluginLike>(
+  base: PluginSet<P>,
+  overlay: PluginSet<P>,
+): PluginSet<P> {
+  return PLUGIN_KINDS.reduce((composed, kind) => {
+    const baseEntries = base[kind] ?? [];
+    const overlayEntries = overlay[kind] ?? [];
+
+    const layered = baseEntries.map((baseEntry) => {
+      const override = overlayEntries.find(
+        entry => entry.name === baseEntry.name,
+      );
+      if (!override) {
+        return baseEntry;
+      }
+      return isFullDefinition(override)
+        ? override
+        : { ...baseEntry, ...override };
+    });
+
+    return {
+      ...composed,
+      [kind]: [
+        ...layered,
+        ...overlayEntries.filter(entry => !hasPlugin(baseEntries, entry.name)),
+      ],
+    };
+  }, emptyPluginSet<P>());
+}
+
 export function findPluginIndex<P extends PluginLike>(
   plugins: readonly P[],
   name: string,

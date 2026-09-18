@@ -8,6 +8,7 @@
 
 import {
   applyPluginConfiguration,
+  emptyPluginSet,
   isPluginKind,
   type PluginKind,
   type PluginLike,
@@ -67,15 +68,9 @@ export function writeStoredPlugins<P extends PluginLike>(
   storage.setItem(STORAGE_KEY, JSON.stringify(flattenPluginSet(pluginSet)));
 }
 
-/**
- * Folds each stored entry onto `pluginSet`. Upsert-only: adds or updates
- * (merging, never stripping fields, per `applyPluginConfiguration`), but
- * never removes a `pluginSet` entry just because storage doesn't mention it
- * - matching `compas-open-scd`'s "built-ins always survive" merge
- * behaviour. Entries with an unrecognised `kind` are ignored.
- */
-export function mergeStoredPlugins<P extends PluginLike>(
-  pluginSet: PluginSet<P>,
+/** Rebuilds the `PluginSet` we own from its stored, flat representation.
+ * Entries with an unrecognised `kind` are ignored. */
+export function pluginSetFromStored<P extends PluginLike>(
   stored: readonly StoredPlugin<P>[],
 ): PluginSet<P> {
   return stored.reduce((set, storedPlugin) => {
@@ -85,11 +80,11 @@ export function mergeStoredPlugins<P extends PluginLike>(
     if (!isPluginKind(kind)) {
       return set;
     }
-    const { pluginSet: next } = applyPluginConfiguration(set, {
+    const { pluginSet } = applyPluginConfiguration(set, {
       name: config.name,
       kind,
       config: config as unknown as Partial<P> & { name?: string },
     });
-    return next;
-  }, pluginSet);
+    return pluginSet;
+  }, emptyPluginSet<P>());
 }

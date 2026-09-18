@@ -2,13 +2,16 @@ import { expect } from '@open-wc/testing';
 
 import {
   addPlugin,
+  composePluginSets,
   applyPluginConfiguration,
   changePlugin,
+  emptyPluginSet,
   findPluginIndex,
   hasPlugin,
   isPluginKind,
   removePlugin,
   type PluginSet,
+  withoutPlugins,
 } from './plugin-configuration.js';
 
 interface TestPlugin {
@@ -89,11 +92,85 @@ describe('plugin-configuration', () => {
     });
   });
 
-  describe('applyPluginConfiguration', () => {
-    function emptyPluginSet(): PluginSet<TestPlugin> {
-      return { menu: [], editor: [], background: [] };
-    }
+  describe('composePluginSets', () => {
+    const host: PluginSet<TestPlugin> = {
+      menu: [{ name: 'host', tagName: 'oscd-pHOST', icon: 'h' }],
+      editor: [],
+      background: [],
+    };
 
+    it('keeps host entries the overlay does not mention', () => {
+      expect(composePluginSets(host, emptyPluginSet()).menu).to.deep.equal([
+        { name: 'host', tagName: 'oscd-pHOST', icon: 'h' },
+      ]);
+    });
+
+    it('appends overlay entries the host does not have', () => {
+      const overlay: PluginSet<TestPlugin> = {
+        ...emptyPluginSet(),
+        menu: [{ name: 'ours', src: '/ours.js' }],
+      };
+
+      expect(composePluginSets(host, overlay).menu).to.deep.equal([
+        { name: 'host', tagName: 'oscd-pHOST', icon: 'h' },
+        { name: 'ours', src: '/ours.js' },
+      ]);
+    });
+
+    it('lets a src-bearing overlay entry replace the host entry outright, so no stale tagName survives alongside src', () => {
+      const overlay: PluginSet<TestPlugin> = {
+        ...emptyPluginSet(),
+        menu: [{ name: 'host', src: '/ours.js' }],
+      };
+
+      expect(composePluginSets(host, overlay).menu).to.deep.equal([
+        { name: 'host', src: '/ours.js' },
+      ]);
+    });
+
+    it('merges a partial overlay entry onto the host entry, which supplies the identity', () => {
+      const overlay: PluginSet<TestPlugin> = {
+        ...emptyPluginSet(),
+        menu: [{ name: 'host', icon: 'changed' }],
+      };
+
+      expect(composePluginSets(host, overlay).menu).to.deep.equal([
+        { name: 'host', tagName: 'oscd-pHOST', icon: 'changed' },
+      ]);
+    });
+
+    it('tolerates a partial host set missing a kind key', () => {
+      const partial = { menu: [] } as unknown as PluginSet<TestPlugin>;
+
+      expect(composePluginSets(partial, emptyPluginSet())).to.deep.equal(
+        emptyPluginSet(),
+      );
+    });
+  });
+
+  describe('withoutPlugins', () => {
+    it('removes only entries owned by the given set', () => {
+      const pluginSet: PluginSet<TestPlugin> = {
+        menu: [
+          { name: 'host', icon: 'host' },
+          { name: 'owned', icon: 'owned' },
+        ],
+        editor: [],
+        background: [],
+      };
+      const owned: PluginSet<TestPlugin> = {
+        menu: [{ name: 'owned' }],
+        editor: [],
+        background: [],
+      };
+
+      expect(withoutPlugins(pluginSet, owned).menu).to.deep.equal([
+        { name: 'host', icon: 'host' },
+      ]);
+    });
+  });
+
+  describe('applyPluginConfiguration', () => {
     it('treats a missing kind entry in a partial plugin set as empty', () => {
       const partial = { menu: [], editor: [] } as Partial<
         PluginSet<TestPlugin>

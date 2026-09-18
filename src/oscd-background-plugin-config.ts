@@ -1,9 +1,16 @@
 import {
   applyPluginConfiguration,
+  composePluginSets,
   type ConfigurePluginDetail,
+  emptyPluginSet,
   type PluginSet,
+  withoutPlugins,
 } from './plugin-configuration.js';
-import { mergeStoredPlugins, readStoredPlugins, writeStoredPlugins } from './plugin-local-storage.js';
+import {
+  pluginSetFromStored,
+  readStoredPlugins,
+  writeStoredPlugins,
+} from './plugin-local-storage.js';
 
 interface ShellLike extends HTMLElement {
   plugins: PluginSet;
@@ -30,12 +37,17 @@ function findShell(node: Node | null): ShellLike | null {
   return null;
 }
 
-/** Assigns `pluginSet` to `shell.plugins` and persists it to
- * `localStorage['plugins']`, matching `compas-open-scd`'s "store on every
- * change" behaviour. */
-function updateShellPlugins(shell: ShellLike, pluginSet: PluginSet) {
-  shell.plugins = pluginSet;
-  writeStoredPlugins(pluginSet);
+/** The plugins configured through events; only these are persisted. */
+const ownedPluginSets = new WeakMap<ShellLike, PluginSet>();
+
+/** `kind` belongs to the set, not to an entry. */
+function sanitizeDetail(detail: ConfigurePluginDetail): ConfigurePluginDetail {
+  const { config } = detail;
+  if (config === null || !('kind' in config)) {
+    return detail;
+  }
+  const { kind: _bucketKey, ...rest } = config as Record<string, unknown>;
+  return { ...detail, config: rest as ConfigurePluginDetail['config'] };
 }
 
 /** Handles `oscd-configure-plugin` events for `oscd-shell`, delegating the
@@ -51,16 +63,23 @@ export default class OscdBackgroundPluginConfig extends HTMLElement {
     }
 
     const { detail } = event as CustomEvent<ConfigurePluginDetail>;
-    const { pluginSet, error } = applyPluginConfiguration(
-      shell.plugins,
-      detail,
+    const owned = ownedPluginSets.get(shell) ?? emptyPluginSet();
+    const { pluginSet: nextOwned, error } = applyPluginConfiguration(
+      owned,
+      sanitizeDetail(detail),
     );
 
     if (error) {
       console.warn(`oscd-background-plugin-config: ${error}`);
+      return;
     }
 
-    updateShellPlugins(shell, pluginSet);
+    ownedPluginSets.set(shell, nextOwned);
+    shell.plugins = composePluginSets(
+      withoutPlugins(shell.plugins, owned),
+      nextOwned,
+    );
+    writeStoredPlugins(nextOwned);
   };
 
   connectedCallback() {
@@ -70,14 +89,16 @@ export default class OscdBackgroundPluginConfig extends HTMLElement {
     );
 
     const shell = findShell(this);
-    const stored = readStoredPlugins();
-    if (!shell || stored.length === 0) {
+    if (!shell) {
       return;
     }
 
-    const merged = mergeStoredPlugins(shell.plugins, stored);
-    if (JSON.stringify(merged) !== JSON.stringify(shell.plugins)) {
-      updateShellPlugins(shell, merged);
+    const owned = pluginSetFromStored(readStoredPlugins());
+    ownedPluginSets.set(shell, owned);
+
+    const composed = composePluginSets(shell.plugins, owned);
+    if (JSON.stringify(composed) !== JSON.stringify(shell.plugins)) {
+      shell.plugins = composed;
     }
   }
 

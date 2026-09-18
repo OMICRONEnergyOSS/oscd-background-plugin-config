@@ -2,7 +2,7 @@ import { expect } from '@open-wc/testing';
 
 import {
   flattenPluginSet,
-  mergeStoredPlugins,
+  pluginSetFromStored,
   readStoredPlugins,
   writeStoredPlugins,
   type StoredPlugin,
@@ -129,46 +129,26 @@ describe('plugin-local-storage', () => {
     });
   });
 
-  describe('mergeStoredPlugins', () => {
-    it('adds a stored plugin that does not yet exist', () => {
+  describe('pluginSetFromStored', () => {
+    it('buckets stored entries by kind', () => {
+      const stored: StoredPlugin<TestPlugin>[] = [
+        { name: 'Stored menu', kind: 'menu', src: '/menu.js' },
+        { name: 'Stored editor', kind: 'editor', src: '/editor.js' },
+      ];
+
+      expect(pluginSetFromStored(stored)).to.deep.equal({
+        menu: [{ name: 'Stored menu', src: '/menu.js' }],
+        editor: [{ name: 'Stored editor', src: '/editor.js' }],
+        background: [],
+      });
+    });
+
+    it('drops the kind key from the reconstructed entry', () => {
       const stored: StoredPlugin<TestPlugin>[] = [
         { name: 'Stored menu', kind: 'menu', src: '/menu.js' },
       ];
 
-      const merged = mergeStoredPlugins(emptyPluginSet(), stored);
-
-      expect(merged.menu).to.deep.equal([
-        { name: 'Stored menu', src: '/menu.js' },
-      ]);
-    });
-
-    it('merges onto an existing plugin without stripping host-only fields', () => {
-      const pluginSet: PluginSet<TestPlugin> = {
-        menu: [{ name: 'Menu plugin', src: '/menu.js', icon: 'menu' }],
-        editor: [],
-        background: [],
-      };
-      const stored: StoredPlugin<TestPlugin>[] = [
-        { name: 'Menu plugin', kind: 'menu', src: '/updated.js' },
-      ];
-
-      const merged = mergeStoredPlugins(pluginSet, stored);
-
-      expect(merged.menu).to.deep.equal([
-        { name: 'Menu plugin', src: '/updated.js', icon: 'menu' },
-      ]);
-    });
-
-    it('is upsert-only: plugins absent from storage are kept, not removed', () => {
-      const pluginSet: PluginSet<TestPlugin> = {
-        menu: [{ name: 'Host-only plugin' }],
-        editor: [],
-        background: [],
-      };
-
-      const merged = mergeStoredPlugins(pluginSet, []);
-
-      expect(merged.menu).to.deep.equal([{ name: 'Host-only plugin' }]);
+      expect(pluginSetFromStored(stored).menu[0]).to.not.have.property('kind');
     });
 
     it('ignores stored entries with an unrecognised kind', () => {
@@ -176,9 +156,20 @@ describe('plugin-local-storage', () => {
         { name: 'Validator plugin', kind: 'validator', src: '/v.js' },
       ] as unknown as StoredPlugin<TestPlugin>[];
 
-      const merged = mergeStoredPlugins(emptyPluginSet(), stored);
+      expect(pluginSetFromStored(stored)).to.deep.equal(emptyPluginSet());
+    });
 
-      expect(merged).to.deep.equal(emptyPluginSet());
+    it('round-trips a written PluginSet', () => {
+      const pluginSet = {
+        ...emptyPluginSet(),
+        menu: [{ name: 'Menu plugin', src: '/menu.js', icon: 'menu' }],
+      };
+      const storage = createFakeStorage();
+      writeStoredPlugins(pluginSet, storage);
+
+      expect(pluginSetFromStored(readStoredPlugins(storage))).to.deep.equal(
+        pluginSet,
+      );
     });
   });
 });
