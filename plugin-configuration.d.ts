@@ -38,6 +38,11 @@ export interface ApplyPluginConfigurationResult<P extends PluginLike = PluginLik
     error?: string;
 }
 export declare function isPluginKind(kind: string): kind is PluginKind;
+/** A new, empty `PluginSet` with every kind present as an empty array. */
+export declare function emptyPluginSet<P extends PluginLike = PluginLike>(): PluginSet<P>;
+export declare function withoutPlugins<P extends PluginLike>(pluginSet: PluginSet<P>, removed: PluginSet<P>): PluginSet<P>;
+/** Layers owned entries onto the current shell set, matching by name. */
+export declare function composePluginSets<P extends PluginLike>(base: PluginSet<P>, overlay: PluginSet<P>): PluginSet<P>;
 export declare function findPluginIndex<P extends PluginLike>(plugins: readonly P[], name: string): number;
 export declare function hasPlugin<P extends PluginLike>(plugins: readonly P[], name: string): boolean;
 /** Appends a new plugin entry. Does not check for an existing entry with the

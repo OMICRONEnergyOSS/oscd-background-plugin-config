@@ -16,6 +16,45 @@ const PLUGIN_KINDS = ['menu', 'editor', 'background'];
 function isPluginKind(kind) {
     return PLUGIN_KINDS.includes(kind);
 }
+/** A new, empty `PluginSet` with every kind present as an empty array. */
+function emptyPluginSet() {
+    return { menu: [], editor: [], background: [] };
+}
+function withoutPlugins(pluginSet, removed) {
+    return PLUGIN_KINDS.reduce((result, kind) => ({
+        ...result,
+        [kind]: (pluginSet[kind] ?? []).filter(plugin => !(removed[kind] ?? []).some(removedPlugin => removedPlugin.name === plugin.name)),
+    }), emptyPluginSet());
+}
+/** Whether `plugin` carries its own identity - a `src` to import from, or an
+ * already-registered `tagName`. Entries with neither are partial and only
+ * make sense layered onto an entry that has one. */
+function isFullDefinition(plugin) {
+    return typeof plugin.src === 'string' || typeof plugin.tagName === 'string';
+}
+/** Layers owned entries onto the current shell set, matching by name. */
+function composePluginSets(base, overlay) {
+    return PLUGIN_KINDS.reduce((composed, kind) => {
+        const baseEntries = base[kind] ?? [];
+        const overlayEntries = overlay[kind] ?? [];
+        const layered = baseEntries.map((baseEntry) => {
+            const override = overlayEntries.find(entry => entry.name === baseEntry.name);
+            if (!override) {
+                return baseEntry;
+            }
+            return isFullDefinition(override)
+                ? override
+                : { ...baseEntry, ...override };
+        });
+        return {
+            ...composed,
+            [kind]: [
+                ...layered,
+                ...overlayEntries.filter(entry => !hasPlugin(baseEntries, entry.name)),
+            ],
+        };
+    }, emptyPluginSet());
+}
 function findPluginIndex(plugins, name) {
     return plugins.findIndex(plugin => plugin.name === name);
 }
@@ -139,26 +178,21 @@ function readStoredPlugins(storage = localStorage) {
 function writeStoredPlugins(pluginSet, storage = localStorage) {
     storage.setItem(STORAGE_KEY, JSON.stringify(flattenPluginSet(pluginSet)));
 }
-/**
- * Folds each stored entry onto `pluginSet`. Upsert-only: adds or updates
- * (merging, never stripping fields, per `applyPluginConfiguration`), but
- * never removes a `pluginSet` entry just because storage doesn't mention it
- * - matching `compas-open-scd`'s "built-ins always survive" merge
- * behaviour. Entries with an unrecognised `kind` are ignored.
- */
-function mergeStoredPlugins(pluginSet, stored) {
+/** Rebuilds the `PluginSet` we own from its stored, flat representation.
+ * Entries with an unrecognised `kind` are ignored. */
+function pluginSetFromStored(stored) {
     return stored.reduce((set, storedPlugin) => {
         const { kind, ...config } = storedPlugin;
         if (!isPluginKind(kind)) {
             return set;
         }
-        const { pluginSet: next } = applyPluginConfiguration(set, {
+        const { pluginSet } = applyPluginConfiguration(set, {
             name: config.name,
             kind,
             config: config,
         });
-        return next;
-    }, pluginSet);
+        return pluginSet;
+    }, emptyPluginSet());
 }
 
 function isShellLike(item) {
@@ -180,12 +214,16 @@ function findShell(node) {
     }
     return null;
 }
-/** Assigns `pluginSet` to `shell.plugins` and persists it to
- * `localStorage['plugins']`, matching `compas-open-scd`'s "store on every
- * change" behaviour. */
-function updateShellPlugins(shell, pluginSet) {
-    shell.plugins = pluginSet;
-    writeStoredPlugins(pluginSet);
+/** The plugins configured through events; only these are persisted. */
+const ownedPluginSets = new WeakMap();
+/** `kind` belongs to the set, not to an entry. */
+function sanitizeDetail(detail) {
+    const { config } = detail;
+    if (config === null || !('kind' in config)) {
+        return detail;
+    }
+    const { kind: _bucketKey, ...rest } = config;
+    return { ...detail, config: rest };
 }
 /** Handles `oscd-configure-plugin` events for `oscd-shell`, delegating the
  * actual add/change/remove decision to the framework-agnostic
@@ -201,23 +239,28 @@ class OscdBackgroundPluginConfig extends HTMLElement {
                 return;
             }
             const { detail } = event;
-            const { pluginSet, error } = applyPluginConfiguration(shell.plugins, detail);
+            const owned = ownedPluginSets.get(shell) ?? emptyPluginSet();
+            const { pluginSet: nextOwned, error } = applyPluginConfiguration(owned, sanitizeDetail(detail));
             if (error) {
                 console.warn(`oscd-background-plugin-config: ${error}`);
+                return;
             }
-            updateShellPlugins(shell, pluginSet);
+            ownedPluginSets.set(shell, nextOwned);
+            shell.plugins = composePluginSets(withoutPlugins(shell.plugins, owned), nextOwned);
+            writeStoredPlugins(nextOwned);
         };
     }
     connectedCallback() {
         document.addEventListener('oscd-configure-plugin', this.handleConfigurePlugin);
         const shell = findShell(this);
-        const stored = readStoredPlugins();
-        if (!shell || stored.length === 0) {
+        if (!shell) {
             return;
         }
-        const merged = mergeStoredPlugins(shell.plugins, stored);
-        if (JSON.stringify(merged) !== JSON.stringify(shell.plugins)) {
-            updateShellPlugins(shell, merged);
+        const owned = pluginSetFromStored(readStoredPlugins());
+        ownedPluginSets.set(shell, owned);
+        const composed = composePluginSets(shell.plugins, owned);
+        if (JSON.stringify(composed) !== JSON.stringify(shell.plugins)) {
+            shell.plugins = composed;
         }
     }
     disconnectedCallback() {

@@ -20,11 +20,6 @@ export declare function readStoredPlugins(storage?: Storage): StoredPlugin[];
 /** Persists `pluginSet` to `storage['plugins']` in the flat, `kind`-tagged
  * shape shared with `compas-open-scd`. */
 export declare function writeStoredPlugins<P extends PluginLike>(pluginSet: PluginSet<P>, storage?: Storage): void;
-/**
- * Folds each stored entry onto `pluginSet`. Upsert-only: adds or updates
- * (merging, never stripping fields, per `applyPluginConfiguration`), but
- * never removes a `pluginSet` entry just because storage doesn't mention it
- * - matching `compas-open-scd`'s "built-ins always survive" merge
- * behaviour. Entries with an unrecognised `kind` are ignored.
- */
-export declare function mergeStoredPlugins<P extends PluginLike>(pluginSet: PluginSet<P>, stored: readonly StoredPlugin<P>[]): PluginSet<P>;
+/** Rebuilds the `PluginSet` we own from its stored, flat representation.
+ * Entries with an unrecognised `kind` are ignored. */
+export declare function pluginSetFromStored<P extends PluginLike>(stored: readonly StoredPlugin<P>[]): PluginSet<P>;
