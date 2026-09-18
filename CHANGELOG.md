@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.1 (2026-09-18)
+
+
+### Features
+
+* initial commit ([ab2ba57](https://github.com/OMICRONEnergyOSS/oscd-background-plugin-config/commit/ab2ba5723b2118da99896826127781c9ec09a6a1))
+* upgraded to fixed oscd-shell and migrated code to work correctly with new shell ([9595d06](https://github.com/OMICRONEnergyOSS/oscd-background-plugin-config/commit/9595d063961550f1caae84b0d4ec203b5dc1d625))
+
 ## [0.0.7](https://github.com/OMICRONEnergyOSS/oscd-background-editv1/compare/oscd-background-editv1-v0.0.6...oscd-background-editv1-v0.0.7) (2026-03-09)
 
 
